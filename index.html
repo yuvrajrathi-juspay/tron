@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>LIGHTWAKE — neon light-cycle arena</title>
+    <meta name="description" content="Ride a light cycle against three rival bots in a neon arena. Every mesh, shader, particle and sound is generated in code. Plays in your browser." />
+    <meta name="theme-color" content="#04060d" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="LIGHTWAKE" />
+    <meta property="og:title" content="LIGHTWAKE — neon light-cycle arena" />
+    <meta property="og:description" content="Ride a light cycle against three rival bots across three arenas: the classic Grid, a sunset mesa with ramps and big air, and a space station with lasers, void pits and portals. Every model, shader and sound is generated in code." />
+    <meta property="og:image" content="%VITE_SITE_URL%og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:url" content="%VITE_SITE_URL%" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="LIGHTWAKE — neon light-cycle arena" />
+    <meta name="twitter:description" content="Light cycles, ramps, lasers, portals. Three arenas, three rival bots, all generated in code. Plays in your browser — keyboard or touch." />
+    <meta name="twitter:image" content="%VITE_SITE_URL%og.png" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2304060d'/%3E%3Cpath d='M5 24 H14 V9 H27' stroke='%2322e8ff' stroke-width='3' fill='none'/%3E%3Ccircle cx='27' cy='9' r='2.6' fill='%23ffffff'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <div id="app">
+      <div id="stage"></div>
+      <div id="tags"></div>
+
+      <!-- In-game HUD -->
+      <div id="hud" hidden>
+        <section class="board panel" id="board" aria-label="Scoreboard"></section>
+
+        <section class="round" aria-label="Round">
+          <div class="round-label">ROUND <b id="round-no">1</b></div>
+          <div class="round-time" id="round-time">0:00</div>
+          <div class="collapse" id="collapse">
+            <span id="collapse-text">COLLAPSE IN 40</span>
+            <i><b id="collapse-bar"></b></i>
+          </div>
+        </section>
+
+        <section class="feed" id="feed" aria-live="polite"></section>
+
+        <section class="gauge" aria-label="Speed and boost">
+          <svg viewBox="0 0 240 140" class="gauge-svg">
+            <defs>
+              <linearGradient id="g-boost" x1="0" x2="1">
+                <stop offset="0" stop-color="#1bb7ff" />
+                <stop offset="1" stop-color="#8ff6ff" />
+              </linearGradient>
+            </defs>
+            <path class="g-track" d="M20 128 A100 100 0 0 1 220 128" pathLength="100" />
+            <path class="g-boost" id="g-boost" d="M20 128 A100 100 0 0 1 220 128" pathLength="100" />
+            <path class="g-track thin" d="M38 128 A82 82 0 0 1 202 128" pathLength="100" />
+            <path class="g-speed" id="g-speed" d="M38 128 A82 82 0 0 1 202 128" pathLength="100" />
+            <g class="g-ticks" id="g-ticks"></g>
+          </svg>
+          <div class="speed"><b id="speed">000</b><small>KM/H</small></div>
+          <div class="boost-label">BOOST <span id="boost-pct">100</span></div>
+          <div class="grind" id="grind">GRIND <em>+ BOOST</em></div>
+        </section>
+
+        <section class="jump" id="jump" aria-label="Jump">
+          <svg viewBox="0 0 80 80">
+            <polygon class="j-hex" points="40,6 70,23 70,57 40,74 10,57 10,23" />
+            <circle class="j-track" cx="40" cy="40" r="26" pathLength="100" />
+            <circle class="j-fill" id="j-fill" cx="40" cy="40" r="26" pathLength="100" />
+            <path class="j-icon" d="M28 48 L40 30 L52 48" />
+            <path class="j-icon" d="M28 56 L40 40 L52 56" opacity=".45" />
+          </svg>
+          <div class="j-text"><b id="jump-state">JUMP</b><kbd>SPACE</kbd></div>
+        </section>
+
+        <section class="map panel" aria-label="Minimap"><canvas id="minimap"></canvas></section>
+
+        <section class="spectate" id="spectate" hidden></section>
+        <section class="idle" id="idle" hidden></section>
+        <section class="popups" id="popups" aria-live="polite"></section>
+        <section class="ghost-badge" id="ghost-badge" hidden></section>
+
+        <section class="keys" id="keys">
+          <span><kbd>W</kbd> THROTTLE</span>
+          <span><kbd>A</kbd><kbd>D</kbd> STEER</span>
+          <span><kbd>S</kbd> BRAKE</span>
+          <span><kbd class="wide">SHIFT</kbd> BOOST</span>
+          <span><kbd class="wide">SPACE</kbd> JUMP WALLS</span>
+          <span><kbd>ESC</kbd> PAUSE</span>
+        </section>
+      </div>
+
+      <div id="center">
+        <div id="count"></div>
+        <div id="banner"></div>
+        <div id="sub"></div>
+      </div>
+
+      <!-- Title / menu -->
+      <div id="menu" class="screen" hidden>
+        <div class="menu-inner">
+          <header class="logo">
+            <div class="logo-main" data-text="LIGHTWAKE">LIGHTWAKE</div>
+            <div class="logo-sub">RIDE LIGHT <i></i> LEAVE NOTHING</div>
+          </header>
+
+          <div class="field-label center">CHOOSE YOUR ARENA</div>
+          <div class="maps" id="maps" role="radiogroup" aria-label="Arena"></div>
+
+          <div class="menu-grid">
+            <div class="menu-card panel">
+              <button class="btn primary" id="btn-play"><span>ENTER THE ARENA</span><kbd>ENTER</kbd></button>
+              <div class="field-label">RIVAL SKILL</div>
+              <div class="seg" id="diff" role="radiogroup">
+                <button data-d="rookie" role="radio">ROOKIE</button>
+                <button data-d="pilot" role="radio">PILOT</button>
+                <button data-d="ace" role="radio">ACE</button>
+              </div>
+              <p class="diff-desc" id="diff-desc"></p>
+              <p class="touch-help">Hold <b>GAS</b> to ride · <b>◀ ▶</b> steer · <b>BRAKE</b> · <b>BOOST</b> · <b>JUMP</b> over walls. Stand still for 5s and you derez.</p>
+              <div class="rules">
+                <div><b>+3</b> last rider standing</div>
+                <div><b>+1</b> every rival that hits your wall</div>
+                <div><b>15</b> points wins the match</div>
+              </div>
+            </div>
+
+            <div class="menu-card panel how">
+              <div class="field-label">CONTROLS</div>
+              <ul class="ctl">
+                <li><span><kbd>W</kbd></span> Throttle. Hold to ride; let go and you coast down.</li>
+                <li><span><kbd>A</kbd><kbd>D</kbd></span> Steer freely. Slower bikes turn tighter.</li>
+                <li><span><kbd>S</kbd></span> Brake, all the way to a stop.</li>
+                <li><span><kbd class="wide">SHIFT</kbd></span> Boost. Burns the meter.</li>
+                <li><span><kbd class="wide">SPACE</kbd></span> Jump over a light wall. Recharges in 7s.</li>
+              </ul>
+              <div class="field-label">TECHNIQUE</div>
+              <p class="tip">Stand still for <b>5 seconds</b> and you derez. <b>Grind</b> alongside walls, pull <b>close calls</b> and land <b>big air</b> to refill boost. Pickups: <b class="c-boost">BOOST</b> <b class="c-jump">JUMP</b> <b class="c-ghost">GHOST</b> (ride through walls). The arena closes in late in each round.</p>
+            </div>
+          </div>
+
+          <div class="roster" id="roster"></div>
+        </div>
+        <footer class="menu-foot">
+          <span><kbd>M</kbd> mute</span>
+          <span>Every model, shader, particle and sound is generated in code.</span>
+          <span id="backend-tag"></span>
+        </footer>
+      </div>
+
+      <!-- Round / match results -->
+      <div id="results" class="screen" hidden>
+        <div class="res-card panel">
+          <div class="res-kicker" id="res-kicker">ROUND 1</div>
+          <h2 id="res-title">ROUND OVER</h2>
+          <div class="res-table" id="res-table"></div>
+          <div class="res-actions" id="res-actions"></div>
+          <div class="res-hint" id="res-hint"></div>
+        </div>
+      </div>
+
+      <!-- Pause -->
+      <div id="pause" class="screen" hidden>
+        <div class="pause-card panel">
+          <h2>PAUSED</h2>
+          <button class="btn primary" id="btn-resume"><span>RESUME</span><kbd>ESC</kbd></button>
+          <button class="btn" id="btn-restart"><span>RESTART MATCH</span></button>
+          <button class="btn" id="btn-quit"><span>QUIT TO MENU</span></button>
+          <div class="sliders">
+            <label>MUSIC <input type="range" id="vol-music" min="0" max="1" step="0.05" /></label>
+            <label>EFFECTS <input type="range" id="vol-sfx" min="0" max="1" step="0.05" /></label>
+            <label class="check"><input type="checkbox" id="opt-motion" /> REDUCED MOTION</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Boot -->
+      <div id="boot" class="screen">
+        <div class="boot-inner">
+          <div class="boot-logo">LIGHTWAKE</div>
+          <div class="boot-bar"><i id="boot-bar"></i></div>
+          <div class="boot-text" id="boot-text">INITIALIZING GRID</div>
+        </div>
+      </div>
+
+      <div id="touch" hidden></div>
+      <button id="tpause" class="tpause" aria-label="Pause" hidden>II</button>
+      <div id="flash"></div>
+      <div id="rotate-note" hidden>Tip: turn your phone sideways for the best view.</div>
+    </div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
